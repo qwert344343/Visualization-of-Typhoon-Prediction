@@ -3,7 +3,7 @@
 **基于中央气象台台风网（typhoon.nmc.cn）的台风实时监测与预报可视化系统。**
 前后端全栈实现：Node.js **零 npm 依赖**后端 + Leaflet 前端，SSE 实时推送，中英双语，深/浅双主题，移动端自适应，中国/海外双数据线路，支持 Docker 一键部署。
 
-**作者：ZHAO XUEJIN** · 仅供学术交流，非商用。
+**作者：ZHAO XUEJIN（武汉华夏理工学院在读学生 / student at Wuhan Huaxia Institute of Technology）** · 仅供学术交流，非商用。
 
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-green)](https://nodejs.org) [![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-blue)](https://leafletjs.com) [![Tests](https://img.shields.io/badge/tests-node:test%2026%E2%9C%93-brightgreen)](#测试) [![Docker](https://img.shields.io/badge/Docker-ready-2496ED)](https://www.docker.com) [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -166,7 +166,10 @@ npm test           # node --test，26 个用例，无需安装任何依赖
 
 ## 作者
 
-**ZHAO XUEJIN**
+**ZHAO XUEJIN** — 武汉华夏理工学院在读学生 / student at Wuhan Huaxia Institute of Technology.
+
+> This project is a personal portfolio work for academic exchange only, non-commercial.
+> Data & basemaps come from public APIs of the China Meteorological Administration (nmc.cn).
 
 ## 目录结构
 
