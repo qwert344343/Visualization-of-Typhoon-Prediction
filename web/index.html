@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台风实时监测预报 WebGIS · 中央气象台数据</title>
+  <meta name="author" content="ZHAO XUEJIN" />
+  <meta name="description" content="基于中央气象台（typhoon.nmc.cn）数据的台风实时监测 WebGIS：实时路径、四象限风圈、多机构预报对比、全国气象预警、历史台风路径回放。中英双语、深浅主题、移动端自适应。仅供学术交流，非商用。" />
+  <meta name="theme-color" content="#0b1424" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="台风实时监测预报 WebGIS" />
+  <meta property="og:description" content="实时路径 · 风圈渲染 · 多机构预报 · 气象预警 · 历史回放 —— Node.js 零依赖后端 + Leaflet。作者：ZHAO XUEJIN" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 顶栏 -->
+  <header id="topbar">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 40 40" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round">
+          <path d="M20 5.5 A14.5 14.5 0 0 1 34.5 20" />
+          <path d="M20 34.5 A14.5 14.5 0 0 1 5.5 20" />
+        </g>
+        <circle cx="20" cy="20" r="4.2" fill="currentColor" />
+      </svg>
+      <h1><span data-i18n="app.title">台风实时监测预报</span> <span class="sub">WebGIS</span></h1>
+    </div>
+    <div class="top-status">
+      <span id="sse-dot" class="dot dot-off" title="实时连接状态"></span>
+      <span id="sse-text" class="muted">连接中…</span>
+      <span class="sep hide-mobile">|</span>
+      <span class="muted hide-mobile" data-i18n="top.source">数据源：</span>
+      <a class="src-link hide-mobile" href="http://typhoon.nmc.cn" target="_blank" rel="noreferrer" data-i18n="top.sourceName">中央气象台台风网</a>
+      <span class="sep hide-mobile">|</span>
+      <span class="muted hide-mobile" data-i18n="top.updatedAt">更新于</span>
+      <span id="last-update">--</span>
+      <button id="btn-settings" class="btn btn-icon" data-i18n-title="btn.settingsTitle" title="设置" aria-label="设置">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button id="btn-refresh" class="btn" data-i18n="btn.refresh" data-i18n-title="btn.refreshTitle" title="立即向上游拉取最新数据">刷新</button>
+    </div>
+  </header>
+
+  <div id="main">
+    <!-- 侧栏 -->
+    <aside id="sidebar">
+      <section class="side-section">
+        <h2 id="list-title"><span id="active-count">0</span></h2>
+        <div id="typhoon-list" class="ty-list"><div class="empty" data-i18n="list.loading">加载中…</div></div>
+      </section>
+
+      <section class="side-section">
+        <h2 data-i18n="history.title">历史台风查询</h2>
+        <div class="row">
+          <select id="year-select" class="select grow"></select>
+          <button id="btn-year-load" class="btn btn-sm" data-i18n="history.query">查询</button>
+          <button id="btn-exit-history" class="btn btn-sm btn-ghost" style="display:none" data-i18n="history.backLive">返回实时</button>
+        </div>
+      </section>
+
+      <section class="side-section">
+        <h2 data-i18n="layers.title">图层与显示</h2>
+        <div class="opt-row"><label data-i18n="layers.basemap">底图</label>
+          <select id="basemap-select" class="select grow">
+            <option value="tdtvec" selected data-i18n="basemap.tdtvec">天地图 · 矢量（中文）</option>
+            <option value="tdtimg" data-i18n="basemap.tdtimg">天地图 · 卫星影像</option>
+            <option value="tdtter" data-i18n="basemap.tdtter">天地图 · 地形晕渲</option>
+            <option value="esriocean" data-i18n="basemap.esriocean">Esri · 海洋</option>
+            <option value="esriimg" data-i18n="basemap.esriimg">Esri · 卫星影像</option>
+            <option value="osm" data-i18n="basemap.osm">OpenStreetMap</option>
+          </select>
+        </div>
+        <div class="checks" id="layer-checks">
+          <label><input type="checkbox" id="ck-wind30" checked> <span data-i18n="layer.wind30">七级风圈</span></label>
+          <label><input type="checkbox" id="ck-wind50" checked> <span data-i18n="layer.wind50">十级风圈</span></label>
+          <label><input type="checkbox" id="ck-wind64" checked> <span data-i18n="layer.wind64">十二级风圈</span></label>
+          <label><input type="checkbox" id="ck-forecast" checked> <span data-i18n="layer.forecast">预报路径</span></label>
+          <label><input type="checkbox" id="ck-warnline" checked> <span data-i18n="layer.warnline">台风警戒线</span></label>
+          <label><input type="checkbox" id="ck-warnings" checked> <span data-i18n="layer.warnings">气象预警</span></label>
+          <label><input type="checkbox" id="ck-labels" checked> <span data-i18n="layer.labels">轨迹时间标注</span></label>
+        </div>
+        <div class="opt-row"><label data-i18n="layers.orgs">预报机构</label><div id="org-checks" class="checks inline"></div></div>
+      </section>
+
+      <section class="side-section">
+        <h2 data-i18n="legend.title">强度图例</h2>
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <footer class="side-foot">
+        <span data-i18n="footer.source">数据来源：中央气象台（nmc.cn）· 底图：天地图（NMC 代理）/ Esri / OSM</span><br />
+        <span data-i18n="footer.disclaimer">仅供学术交流 · 非商用，预警以官方发布为准</span><br />
+        © 2026 <span>ZHAO XUEJIN</span>
+      </footer>
+    </aside>
+
+    <!-- 地图 -->
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="coord-box" class="muted"></div>
+      <div id="map-loading" class="map-loading" style="display:none"><div class="spinner"></div><span data-i18n="map.loading">加载数据…</span></div>
+      <div id="mode-banner" class="mode-banner" style="display:none"></div>
+      <div id="map-empty" class="map-empty" style="display:none">
+        <div class="empty-card">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <g fill="none" stroke="#2f9df6" stroke-width="4.6" stroke-linecap="round">
+              <path d="M20 5.5 A14.5 14.5 0 0 1 34.5 20" />
+              <path d="M20 34.5 A14.5 14.5 0 0 1 5.5 20" />
+            </g>
+            <circle cx="20" cy="20" r="4.2" fill="#2f9df6" />
+          </svg>
+          <div class="empty-title" data-i18n="map.empty.title">当前没有活跃台风</div>
+          <div class="empty-sub" data-i18n="map.empty.sub">西太平洋/南海暂无台风活动，可查看历史台风路径</div>
+          <div class="empty-actions">
+            <button id="btn-empty-history" class="btn" data-i18n="map.empty.history">查询历史台风</button>
+            <button id="btn-empty-refresh" class="btn btn-ghost" data-i18n="map.empty.refresh">刷新试试</button>
+          </div>
+        </div>
+      </div>
+      <!-- 移动端抽屉按钮 -->
+      <div class="map-btns mobile-only">
+        <button id="btn-drawer-list" class="btn" aria-label="打开台风列表">☰ <span data-i18n="history.query">查询</span></button>
+      </div>
+      <button id="btn-drawer-detail" class="btn mobile-only" aria-label="打开详情面板" style="display:none">›</button>
+    </div>
+
+    <!-- 详情面板 -->
+    <aside id="detail">
+      <div id="detail-body"><div class="empty" data-i18n="detail.placeholder">点击地图上的台风或左侧列表查看详情</div></div>
+    </aside>
+  </div>
+
+  <!-- 回放控制条 -->
+  <div id="playbar" style="display:none">
+    <button id="btn-play" class="btn play-btn" title="播放/暂停">▶</button>
+    <input id="play-slider" type="range" min="0" max="0" value="0" step="1" />
+    <span id="play-time" class="play-time">--</span>
+    <select id="play-speed" class="select">
+      <option value="2000">0.5×</option>
+      <option value="1000" selected>1×</option>
+      <option value="500">2×</option>
+      <option value="250">4×</option>
+    </select>
+    <button id="btn-live" class="btn btn-sm" data-i18n="play.backLive">回到实时</button>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="settings-mask" class="settings-mask" style="display:none">
+    <div class="settings-panel" role="dialog" aria-modal="true" aria-label="设置">
+      <div class="settings-head">
+        <h2 data-i18n="settings.title">设置</h2>
+        <button id="btn-settings-close" class="btn btn-icon" aria-label="关闭设置">✕</button>
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-label" data-i18n="settings.language">界面语言</div>
+        <div class="seg" id="seg-lang">
+          <button data-value="zh" class="active">中文</button>
+          <button data-value="en">English</button>
+        </div>
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-label" data-i18n="settings.layout">布局模式</div>
+        <div class="seg" id="seg-layout">
+          <button data-value="auto" class="active" data-i18n="layout.auto">自动</button>
+          <button data-value="desktop" data-i18n="layout.desktop">桌面</button>
+          <button data-value="mobile" data-i18n="layout.mobile">移动</button>
+        </div>
+        <div class="settings-desc" data-i18n="settings.layoutDesc">移动布局将侧栏与详情面板变为抽屉；桌面布局始终平铺展示。</div>
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-label" data-i18n="settings.theme">主题外观</div>
+        <div class="seg" id="seg-theme">
+          <button data-value="dark" class="active" data-i18n="theme.dark">深色</button>
+          <button data-value="light" data-i18n="theme.light">浅色</button>
+        </div>
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-label" data-i18n="settings.route">数据线路</div>
+        <div class="seg" id="seg-route">
+          <button data-value="auto" class="active" data-i18n="route.auto">自动</button>
+          <button data-value="cn" data-i18n="route.cn">中国</button>
+          <button data-value="global" data-i18n="route.global">海外</button>
+        </div>
+        <div class="settings-desc" data-i18n="settings.routeDesc">台风数据均来自中央气象台免费公开接口。中国线路默认天地图底图（NMC 代理），海外线路默认 Esri 海洋底图，保证全球加载速度。</div>
+      </div>
+
+      <div class="settings-item settings-about">
+        <div class="settings-label" data-i18n="settings.about">关于</div>
+        <div class="about-row"><span data-i18n="settings.author">作者</span><b>ZHAO XUEJIN</b></div>
+        <div class="about-row"><span data-i18n="settings.sources">数据源（免费公开）</span><span data-i18n="settings.sourcesValue">中央气象台台风网 · 天地图/Esri/OSM 底图</span></div>
+        <div class="about-disclaimer" data-i18n="settings.disclaimer">本系统仅供学术交流使用，非商用。实时预警请以中央气象台官方发布为准。</div>
+        <div class="about-disclaimer" data-i18n="settings.disclaimerEn">For academic exchange only, non-commercial.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="backdrop"></div>
+  <div id="toast-box"></div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

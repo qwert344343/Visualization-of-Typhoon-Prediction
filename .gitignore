@@ -1,0 +1,12 @@
+# 运行时产物
+node_modules/
+data/cache/
+*.log
+
+# 便携版 Node 运行时（83MB，可从 nodejs.org 重新下载）
+runtime/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,21 @@
+services:
+  typhoon-webgis:
+    build:
+      context: .
+      args:
+        NODE_IMAGE: node:24-alpine   # 拉取困难时可改用本地已有基础镜像
+    image: typhoon-webgis:latest
+    container_name: typhoon-webgis
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - POLL_INTERVAL_MS=300000   # 上游轮询间隔（毫秒）
+      - TILE_CACHE_MAX_MB=300     # 天地图瓦片磁盘缓存上限
+      # - NMC_UPSTREAM=http://typhoon.nmc.cn
+    volumes:
+      - tile-cache:/app/data/cache/tiles
+    restart: unless-stopped
+
+volumes:
+  tile-cache:
